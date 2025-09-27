@@ -1,0 +1,217 @@
+import logging
+import os
+import threading
+import time
+
+from dotenv import load_dotenv
+from flask import Flask, jsonify, render_template, request
+
+from downloader import YTDLPDownloader
+
+# Load environment variables
+load_dotenv()
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+# Initialize Flask app
+app = Flask(__name__)
+
+# Configuration
+DOWNLOAD_DIR = os.getenv('DOWNLOAD_DIR', '/downloads')
+PORT = int(os.getenv('PORT', 8000))
+MAX_CONCURRENT_DOWNLOADS = int(os.getenv('MAX_CONCURRENT_DOWNLOADS', 2))
+
+# Ensure download directory exists and is writable
+try:
+    os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+    logger.info(f"Download directory ready: {DOWNLOAD_DIR}")
+
+    # Test write permissions
+    test_file = os.path.join(DOWNLOAD_DIR, '.write_test')
+    with open(test_file, 'w') as f:
+        f.write('test')
+    os.remove(test_file)
+    logger.info("Download directory is writable")
+
+except PermissionError:
+    logger.error(f"Permission denied creating/writing to download directory: {DOWNLOAD_DIR}")
+    raise
+except Exception as e:
+    logger.error(f"Failed to setup download directory {DOWNLOAD_DIR}: {e}")
+    raise
+
+# Initialize downloader
+downloader = YTDLPDownloader(DOWNLOAD_DIR)
+
+# Cleanup thread to remove old jobs
+def cleanup_worker():
+    while True:
+        time.sleep(3600)  # Run every hour
+        downloader.cleanup_old_jobs(24)  # Remove jobs older than 24 hours
+
+cleanup_thread = threading.Thread(target=cleanup_worker, daemon=True)
+cleanup_thread.start()
+
+@app.route('/')
+def index():
+    """Serve the main web interface"""
+    return render_template('index.html')
+
+@app.route('/download', methods=['POST'])
+def download():
+    """Handle download requests"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No JSON data provided'}), 400
+
+        urls = data.get('urls', [])
+        if not urls:
+            return jsonify({'error': 'No URLs provided'}), 400
+
+        # Handle single URL string
+        if isinstance(urls, str):
+            urls = [urls]
+
+        # Filter and validate URLs
+        valid_urls = []
+        for url in urls:
+            url = url.strip()
+            if url and (url.startswith('http://') or url.startswith('https://')):
+                valid_urls.append(url)
+
+        if not valid_urls:
+            return jsonify({'error': 'No valid URLs provided'}), 400
+
+        # Queue downloads
+        job_ids = downloader.queue_multiple_downloads(valid_urls)
+
+        logger.info(f"Queued {len(job_ids)} downloads")
+
+        return jsonify({
+            'success': True,
+            'job_ids': job_ids,
+            'message': f'Queued {len(job_ids)} downloads'
+        })
+
+    except Exception as e:
+        logger.error(f"Download error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/status/<job_id>')
+def get_status(job_id):
+    """Get status of a specific download job"""
+    try:
+        job = downloader.get_job_status(job_id)
+        if not job:
+            return jsonify({'error': 'Job not found'}), 404
+
+        return jsonify({
+            'job_id': job.job_id,
+            'url': job.url,
+            'status': job.status,
+            'progress': job.progress,
+            'filename': job.filename,
+            'error': job.error,
+            'started_at': job.started_at.isoformat() if job.started_at else None,
+            'completed_at': job.completed_at.isoformat() if job.completed_at else None
+        })
+
+    except Exception as e:
+        logger.error(f"Status error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/status')
+def get_all_status():
+    """Get status of all download jobs"""
+    try:
+        jobs = downloader.get_all_jobs()
+        job_list = []
+
+        for job in jobs.values():
+            job_list.append({
+                'job_id': job.job_id,
+                'url': job.url,
+                'status': job.status,
+                'progress': job.progress,
+                'filename': job.filename,
+                'error': job.error,
+                'started_at': job.started_at.isoformat() if job.started_at else None,
+                'completed_at': job.completed_at.isoformat() if job.completed_at else None
+            })
+
+        return jsonify({
+            'jobs': job_list,
+            'total': len(job_list)
+        })
+
+    except Exception as e:
+        logger.error(f"Status error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/info', methods=['POST'])
+def get_video_info():
+    """Get video information without downloading"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No JSON data provided'}), 400
+
+        url = data.get('url', '').strip()
+        if not url:
+            return jsonify({'error': 'No URL provided'}), 400
+
+        info = downloader.get_video_info(url)
+        if not info:
+            return jsonify({'error': 'Failed to extract video information'}), 400
+
+        return jsonify({
+            'success': True,
+            'info': info
+        })
+
+    except Exception as e:
+        logger.error(f"Info error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/health')
+def health():
+    """Health check endpoint for Docker"""
+    try:
+        # Simple health check
+        return jsonify({
+            'status': 'healthy',
+            'download_dir': DOWNLOAD_DIR,
+            'download_dir_exists': os.path.exists(DOWNLOAD_DIR),
+            'active_jobs': len([
+                j for j in downloader.get_all_jobs().values()
+                if j.status in ['queued', 'downloading']
+            ])
+        })
+    except Exception as e:
+        logger.error(f"Health check error: {e}")
+        return jsonify({'status': 'unhealthy', 'error': str(e)}), 500
+
+@app.errorhandler(404)
+def not_found(error):
+    return jsonify({'error': 'Not found'}), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    logger.error(f"Internal server error: {error}")
+    return jsonify({'error': 'Internal server error'}), 500
+
+if __name__ == '__main__':
+    logger.info(f"Starting yt-dlp web server on port {PORT}")
+    logger.info(f"Download directory: {DOWNLOAD_DIR}")
+
+    app.run(
+        host='0.0.0.0',
+        port=PORT,
+        debug=os.getenv('DEBUG', 'false').lower() == 'true'
+    )

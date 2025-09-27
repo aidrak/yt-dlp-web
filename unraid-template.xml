@@ -1,0 +1,87 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>yt-dlp-web</Name>
+  <Repository>yt-dlp-web:latest</Repository>
+  <Registry>https://hub.docker.com/</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>bash</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/your-repo/yt-dlp-web</Support>
+  <Project>https://github.com/your-repo/yt-dlp-web</Project>
+  <Overview>A web-based interface for yt-dlp that downloads videos with custom naming format: video-title-yyyy-mm-dd.mp4. Perfect for organizing your video downloads on Unraid.</Overview>
+  <Category>MediaApp:Video</Category>
+  <WebUI>http://[IP]:[PORT:8000]</WebUI>
+  <TemplateURL/>
+  <Icon>https://raw.githubusercontent.com/yt-dlp/yt-dlp/master/.github/banner.svg</Icon>
+  <ExtraParams/>
+  <PostArgs/>
+  <CPUset/>
+  <DateInstalled/>
+  <DonateText/>
+  <DonateLink/>
+  <Description>A web-based interface for yt-dlp that downloads videos with custom naming format: video-title-yyyy-mm-dd.mp4. Perfect for organizing your video downloads on Unraid.
+
+Features:
+- Clean web interface for entering single or multiple URLs
+- Custom naming format: /download_dir/video-title-yyyy-mm-dd/video-title-yyyy-mm-dd.mp4
+- Real-time download progress tracking
+- Support for all yt-dlp compatible sites (YouTube, Vimeo, Twitter, etc.)
+- Automatic MP4 format preference
+- Health checks for container monitoring</Description>
+  <Networking>
+    <Mode>bridge</Mode>
+    <Publish>
+      <Port>
+        <HostPort>8000</HostPort>
+        <ContainerPort>8000</ContainerPort>
+        <Protocol>tcp</Protocol>
+      </Port>
+    </Publish>
+  </Networking>
+  <Data>
+    <Volume>
+      <HostDir>/mnt/user/downloads/yt-dlp</HostDir>
+      <ContainerDir>/downloads</ContainerDir>
+      <Mode>rw</Mode>
+    </Volume>
+  </Data>
+  <Environment>
+    <Variable>
+      <Value>8000</Value>
+      <Name>PORT</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value>false</Value>
+      <Name>DEBUG</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value>production</Value>
+      <Name>ENVIRONMENT</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value>/downloads</Value>
+      <Name>DOWNLOAD_DIR</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value>2</Value>
+      <Name>MAX_CONCURRENT_DOWNLOADS</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value>INFO</Value>
+      <Name>LOG_LEVEL</Name>
+      <Mode/>
+    </Variable>
+  </Environment>
+  <Labels/>
+  <Config Name="Web Interface Port" Target="8000" Default="8000" Mode="tcp" Description="Port for the web interface" Type="Port" Display="always" Required="true" Mask="false">8000</Config>
+  <Config Name="Downloads Directory" Target="/downloads" Default="/mnt/user/downloads/yt-dlp" Mode="rw" Description="Directory where downloaded videos will be stored" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/downloads/yt-dlp</Config>
+  <Config Name="Max Concurrent Downloads" Target="MAX_CONCURRENT_DOWNLOADS" Default="2" Mode="" Description="Maximum number of simultaneous downloads (1-5 recommended)" Type="Variable" Display="always" Required="false" Mask="false">2</Config>
+  <Config Name="Debug Mode" Target="DEBUG" Default="false" Mode="" Description="Enable debug logging (true/false)" Type="Variable" Display="advanced" Required="false" Mask="false">false</Config>
+  <Config Name="Log Level" Target="LOG_LEVEL" Default="INFO" Mode="" Description="Logging level (DEBUG, INFO, WARNING, ERROR)" Type="Variable" Display="advanced" Required="false" Mask="false">INFO</Config>
+</Container>

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>yt-dlp Web Downloader</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎥 yt-dlp Web Downloader</h1>
+            <p>Download videos with custom naming: video-title-yyyy-mm-dd.mp4</p>
+        </header>
+
+        <main>
+            <div class="download-form">
+                <h2>Add Downloads</h2>
+                <form id="downloadForm">
+                    <div class="input-group">
+                        <label for="urls">Video URLs (one per line):</label>
+                        <textarea
+                            id="urls"
+                            name="urls"
+                            rows="6"
+                            placeholder="https://www.youtube.com/watch?v=...&#10;https://vimeo.com/...&#10;https://twitter.com/..."
+                            required
+                        ></textarea>
+                    </div>
+
+                    <div class="button-group">
+                        <button type="submit" id="downloadBtn">
+                            <span id="downloadBtnText">🚀 Start Downloads</span>
+                            <span id="downloadBtnSpinner" class="spinner" style="display: none;">⏳</span>
+                        </button>
+                        <button type="button" id="previewBtn">👁️ Preview Info</button>
+                        <button type="button" id="clearBtn">🗑️ Clear</button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="status-section">
+                <div class="section-header">
+                    <h2>Download Status</h2>
+                    <button id="refreshBtn">🔄 Refresh</button>
+                </div>
+
+                <div id="jobsList" class="jobs-list">
+                    <div class="no-jobs">
+                        No downloads yet. Add some URLs above to get started!
+                    </div>
+                </div>
+            </div>
+
+            <div id="previewModal" class="modal" style="display: none;">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Video Preview</h3>
+                        <button id="closeModal" class="close-btn">&times;</button>
+                    </div>
+                    <div id="previewContent" class="modal-body">
+                        <!-- Preview content will be inserted here -->
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>Built with yt-dlp • Videos saved as: /download_dir/video-title-yyyy-mm-dd/video-title-yyyy-mm-dd.mp4</p>
+        </footer>
+    </div>
+
+    <!-- Toast notifications -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

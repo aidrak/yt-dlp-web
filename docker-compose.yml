@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  yt-dlp-web:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - DOWNLOAD_DIR=/downloads
+      - PORT=8000
+      - MAX_CONCURRENT_DOWNLOADS=2
+    volumes:
+      - .:/app
+      - ./downloads:/downloads
+    restart: unless-stopped

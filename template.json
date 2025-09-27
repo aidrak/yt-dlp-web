@@ -1,0 +1,9 @@
+{
+  "name": "Claude Docker Template",
+  "description": "Complete Docker project with Claude Code integration",
+  "placeholders": {
+    "projectName": {
+      "description": "Project name (e.g., 'My API')"
+    }
+  }
+}
