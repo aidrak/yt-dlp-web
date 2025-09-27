@@ -4,16 +4,16 @@ services:
   yt-dlp-web:
     build: .
     ports:
-      - "${PORT:-8000}:${PORT:-8000}"
+      - "8000:8000"
     environment:
-      - ENVIRONMENT=${ENVIRONMENT:-development}
-      - DEBUG=${DEBUG:-true}
-      - DOWNLOAD_DIR=${DOWNLOAD_DIR:-/downloads}
-      - PORT=${PORT:-8000}
-      - MAX_CONCURRENT_DOWNLOADS=${MAX_CONCURRENT_DOWNLOADS:-2}
-      - PUID=${PUID:-99}   # nobody user (Unraid standard)
-      - PGID=${PGID:-100}  # users group (Unraid standard)
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - DOWNLOAD_DIR=/downloads
+      - PORT=8000
+      - MAX_CONCURRENT_DOWNLOADS=2
+      - PUID=99   # nobody user (Unraid standard)
+      - PGID=100  # users group (Unraid standard)
+      - LOG_LEVEL=INFO
     volumes:
       - .:/app
       - ./downloads:/downloads

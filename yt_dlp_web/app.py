@@ -18,8 +18,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Initialize Flask app
-app = Flask(__name__)
+# Initialize Flask app with correct template and static paths
+import os as _os
+app = Flask(__name__,
+           template_folder=_os.path.join(_os.path.dirname(_os.path.dirname(__file__)), 'templates'),
+           static_folder=_os.path.join(_os.path.dirname(_os.path.dirname(__file__)), 'static'))
 
 # Configuration
 DOWNLOAD_DIR = os.getenv('DOWNLOAD_DIR', '/downloads')
