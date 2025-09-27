@@ -1,34 +1,47 @@
 <?xml version="1.0"?>
 <Container version="2">
   <Name>yt-dlp-web</Name>
-  <Repository>yt-dlp-web:latest</Repository>
+  <Repository>ghcr.io/aidrak/yt-dlp-web:latest</Repository>
   <Registry>https://hub.docker.com/</Registry>
   <Network>bridge</Network>
   <MyIP/>
   <Shell>bash</Shell>
   <Privileged>false</Privileged>
-  <Support>https://github.com/your-repo/yt-dlp-web</Support>
-  <Project>https://github.com/your-repo/yt-dlp-web</Project>
-  <Overview>A web-based interface for yt-dlp that downloads videos with custom naming format: video-title-yyyy-mm-dd.mp4. Perfect for organizing your video downloads on Unraid.</Overview>
+  <Support>https://github.com/aidrak/yt-dlp-web/issues</Support>
+  <Project>https://github.com/aidrak/yt-dlp-web</Project>
+  <Overview>Web interface for yt-dlp with organized file naming and progress tracking. Downloads videos with format: video-title-yyyy-mm-dd/video-title-yyyy-mm-dd.mp4</Overview>
   <Category>MediaApp:Video</Category>
   <WebUI>http://[IP]:[PORT:8000]</WebUI>
-  <TemplateURL/>
-  <Icon>https://raw.githubusercontent.com/yt-dlp/yt-dlp/master/.github/banner.svg</Icon>
+  <TemplateURL>https://raw.githubusercontent.com/aidrak/yt-dlp-web/main/unraid-template.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/aidrak/yt-dlp-web/main/static/favicon.ico</Icon>
   <ExtraParams/>
   <PostArgs/>
   <CPUset/>
   <DateInstalled/>
   <DonateText/>
   <DonateLink/>
-  <Description>A web-based interface for yt-dlp that downloads videos with custom naming format: video-title-yyyy-mm-dd.mp4. Perfect for organizing your video downloads on Unraid.
+  <Description>A modern web interface for yt-dlp that organizes downloads with consistent naming.
 
-Features:
-- Clean web interface for entering single or multiple URLs
-- Custom naming format: /download_dir/video-title-yyyy-mm-dd/video-title-yyyy-mm-dd.mp4
-- Real-time download progress tracking
-- Support for all yt-dlp compatible sites (YouTube, Vimeo, Twitter, etc.)
-- Automatic MP4 format preference
-- Health checks for container monitoring</Description>
+🎯 Key Features:
+• Clean, responsive web UI for single/batch downloads
+• Organized folder structure: video-title-yyyy-mm-dd/video-title-yyyy-mm-dd.mp4
+• Real-time progress tracking with job management
+• Support for 1000+ sites (YouTube, Vimeo, TikTok, Twitter, etc.)
+• Automatic MP4 format selection with quality preferences
+• Background processing with status monitoring
+• Docker health checks and logging
+• RESTful API for automation
+
+🚀 Usage:
+1. Access web interface at http://[unraid-ip]:8000
+2. Paste video URL(s) and click download
+3. Monitor progress in real-time
+4. Files saved to organized folders in downloads directory
+
+📁 File Structure:
+/downloads/Video-Title-2024-01-15/Video-Title-2024-01-15.mp4
+
+🔧 Built with Flask, yt-dlp, and modern web technologies.</Description>
   <Networking>
     <Mode>bridge</Mode>
     <Publish>
@@ -73,6 +86,16 @@ Features:
       <Mode/>
     </Variable>
     <Variable>
+      <Value>99</Value>
+      <Name>PUID</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value>100</Value>
+      <Name>PGID</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
       <Value>INFO</Value>
       <Name>LOG_LEVEL</Name>
       <Mode/>
@@ -84,4 +107,6 @@ Features:
   <Config Name="Max Concurrent Downloads" Target="MAX_CONCURRENT_DOWNLOADS" Default="2" Mode="" Description="Maximum number of simultaneous downloads (1-5 recommended)" Type="Variable" Display="always" Required="false" Mask="false">2</Config>
   <Config Name="Debug Mode" Target="DEBUG" Default="false" Mode="" Description="Enable debug logging (true/false)" Type="Variable" Display="advanced" Required="false" Mask="false">false</Config>
   <Config Name="Log Level" Target="LOG_LEVEL" Default="INFO" Mode="" Description="Logging level (DEBUG, INFO, WARNING, ERROR)" Type="Variable" Display="advanced" Required="false" Mask="false">INFO</Config>
+  <Config Name="User ID" Target="PUID" Default="99" Mode="" Description="User ID for file permissions (99=nobody, standard for Unraid)" Type="Variable" Display="advanced" Required="false" Mask="false">99</Config>
+  <Config Name="Group ID" Target="PGID" Default="100" Mode="" Description="Group ID for file permissions (100=users, standard for Unraid)" Type="Variable" Display="advanced" Required="false" Mask="false">100</Config>
 </Container>

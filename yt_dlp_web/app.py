@@ -31,19 +31,20 @@ try:
     os.makedirs(DOWNLOAD_DIR, exist_ok=True)
     logger.info(f"Download directory ready: {DOWNLOAD_DIR}")
 
-    # Test write permissions
+    # Test write permissions (non-fatal for container startup)
     test_file = os.path.join(DOWNLOAD_DIR, '.write_test')
-    with open(test_file, 'w') as f:
-        f.write('test')
-    os.remove(test_file)
-    logger.info("Download directory is writable")
+    try:
+        with open(test_file, 'w') as f:
+            f.write('test')
+        os.remove(test_file)
+        logger.info("Download directory is writable")
+    except PermissionError:
+        logger.warning(f"Download directory {DOWNLOAD_DIR} is not writable - downloads will fail")
+        logger.warning("Please check your volume mount permissions (PUID/PGID)")
 
-except PermissionError:
-    logger.error(f"Permission denied creating/writing to download directory: {DOWNLOAD_DIR}")
-    raise
 except Exception as e:
     logger.error(f"Failed to setup download directory {DOWNLOAD_DIR}: {e}")
-    raise
+    # Don't raise - let the app start so we can show error in health check
 
 # Initialize downloader
 downloader = YTDLPDownloader(DOWNLOAD_DIR)
@@ -183,16 +184,34 @@ def get_video_info():
 def health():
     """Health check endpoint for Docker"""
     try:
-        # Simple health check
-        return jsonify({
-            'status': 'healthy',
+        # Check if download directory is writable
+        writable = False
+        try:
+            test_file = os.path.join(DOWNLOAD_DIR, '.health_test')
+            with open(test_file, 'w') as f:
+                f.write('test')
+            os.remove(test_file)
+            writable = True
+        except:
+            pass
+
+        status = 'healthy' if writable else 'degraded'
+
+        response = {
+            'status': status,
             'download_dir': DOWNLOAD_DIR,
             'download_dir_exists': os.path.exists(DOWNLOAD_DIR),
+            'download_dir_writable': writable,
             'active_jobs': len([
                 j for j in downloader.get_all_jobs().values()
                 if j.status in ['queued', 'downloading']
             ])
-        })
+        }
+
+        if not writable:
+            response['warning'] = 'Download directory is not writable. Check volume permissions (PUID/PGID).'
+
+        return jsonify(response)
     except Exception as e:
         logger.error(f"Health check error: {e}")
         return jsonify({'status': 'unhealthy', 'error': str(e)}), 500

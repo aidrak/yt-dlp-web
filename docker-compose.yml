@@ -11,6 +11,8 @@ services:
       - DOWNLOAD_DIR=/downloads
       - PORT=8000
       - MAX_CONCURRENT_DOWNLOADS=2
+      - PUID=99   # nobody user (Unraid standard, change if needed)
+      - PGID=100  # users group (Unraid standard, change if needed)
     volumes:
       - .:/app
       - ./downloads:/downloads
