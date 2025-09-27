@@ -60,11 +60,39 @@ A containerized web interface for yt-dlp that downloads videos with custom namin
 
 4. **Environment Variables:**
    ```
+   PORT=8000
    DOWNLOAD_DIR=/downloads
    MAX_CONCURRENT_DOWNLOADS=2
    DEBUG=false
    ENVIRONMENT=production
+   PUID=99
+   PGID=100
    ```
+
+### Configuration with .env File
+
+For Docker Compose, create a `.env` file to customize settings:
+
+```bash
+# Copy the example file
+cp .env.docker .env
+
+# Edit settings
+nano .env
+```
+
+**Example .env file:**
+```bash
+PORT=9000                    # Change web interface port
+DOWNLOAD_DIR=/downloads      # Download directory
+MAX_CONCURRENT_DOWNLOADS=3   # Max simultaneous downloads
+PUID=1000                   # Your user ID (run: id -u)
+PGID=1000                   # Your group ID (run: id -g)
+ENVIRONMENT=production
+DEBUG=false
+```
+
+Then run: `docker-compose up -d`
 
 ### Custom Download Directory
 Configure the `DOWNLOAD_DIR` environment variable to match your preferred Unraid share:
