@@ -38,9 +38,9 @@ try:
             f.write('test')
         os.remove(test_file)
         logger.info("Download directory is writable")
-    except PermissionError:
-        logger.warning(f"Download directory {DOWNLOAD_DIR} is not writable - downloads will fail")
-        logger.warning("Please check your volume mount permissions (PUID/PGID)")
+    except (PermissionError, FileNotFoundError, OSError) as e:
+        logger.warning(f"Download directory write test failed: {e}")
+        logger.warning("Downloads may fail - check volume mount permissions")
 
 except Exception as e:
     logger.error(f"Failed to setup download directory {DOWNLOAD_DIR}: {e}")

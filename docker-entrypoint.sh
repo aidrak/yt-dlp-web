@@ -17,7 +17,12 @@ if [ "$(id -u)" = "0" ]; then
     # Create or use existing user
     if ! getent passwd "$PUID" > /dev/null 2>&1; then
         # No user with this UID exists, create one
-        useradd --create-home --shell /bin/bash --uid "$PUID" --gid "$PGID" appuser
+        # Use --system to avoid the UID_MIN/UID_MAX warning for system users like nobody (99)
+        if [ "$PUID" -lt 1000 ]; then
+            useradd --system --create-home --shell /bin/bash --uid "$PUID" --gid "$PGID" appuser
+        else
+            useradd --create-home --shell /bin/bash --uid "$PUID" --gid "$PGID" appuser
+        fi
     fi
 
     # Ensure downloads directory exists and has correct permissions
