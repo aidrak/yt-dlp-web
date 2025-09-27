@@ -14,8 +14,9 @@ if [ "$(id -u)" = "0" ]; then
         groupadd -g "$PGID" appgroup
     fi
 
-    # Create user if it doesn't exist
+    # Create or use existing user
     if ! getent passwd "$PUID" > /dev/null 2>&1; then
+        # No user with this UID exists, create one
         useradd --create-home --shell /bin/bash --uid "$PUID" --gid "$PGID" appuser
     fi
 

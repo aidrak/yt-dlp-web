@@ -28,13 +28,8 @@ RUN mkdir -p /downloads
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-# Create default user (will be overridden by entrypoint if PUID/PGID are set)
-RUN useradd --create-home --shell /bin/bash --uid 1000 appuser
-
-# Set ownership of app directory
-RUN chown -R appuser:appuser /app
-
-# Note: We start as root so entrypoint can handle permissions, then switch to appuser
+# Note: We don't create a user here - the entrypoint will handle it
+# This avoids conflicts with existing users in the container
 
 # Expose port
 EXPOSE 8000
