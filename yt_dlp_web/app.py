@@ -6,7 +6,7 @@ import time
 from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request
 
-from downloader import YTDLPDownloader
+from .downloader import YTDLPDownloader
 
 # Load environment variables
 load_dotenv()
@@ -206,7 +206,8 @@ def internal_error(error):
     logger.error(f"Internal server error: {error}")
     return jsonify({'error': 'Internal server error'}), 500
 
-if __name__ == '__main__':
+def main():
+    """Main entry point for the application."""
     logger.info(f"Starting yt-dlp web server on port {PORT}")
     logger.info(f"Download directory: {DOWNLOAD_DIR}")
 
@@ -215,3 +216,7 @@ if __name__ == '__main__':
         port=PORT,
         debug=os.getenv('DEBUG', 'false').lower() == 'true'
     )
+
+
+if __name__ == '__main__':
+    main()

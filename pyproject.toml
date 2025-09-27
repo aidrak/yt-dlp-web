@@ -5,9 +5,53 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "yt-dlp-web"
 version = "0.1.0"
-description = "A Docker containerized application"
+description = "Web frontend for yt-dlp with custom naming and Docker support"
+readme = "README.md"
 requires-python = ">=3.11"
-dependencies = []
+license = "MIT"
+authors = [
+    {name = "aidrak", email = "your-email@example.com"}
+]
+keywords = ["yt-dlp", "youtube", "download", "web", "flask", "docker", "unraid"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Internet :: WWW/HTTP :: WSGI :: Application",
+    "Topic :: Multimedia :: Video",
+]
+dependencies = [
+    "flask>=2.3.0",
+    "yt-dlp>=2023.7.6",
+    "python-dotenv>=1.0.0",
+    "gunicorn>=21.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.5.0",
+    "types-requests",
+]
+
+[project.urls]
+Homepage = "https://github.com/aidrak/yt-dlp-web"
+Repository = "https://github.com/aidrak/yt-dlp-web"
+Issues = "https://github.com/aidrak/yt-dlp-web/issues"
+Documentation = "https://github.com/aidrak/yt-dlp-web#readme"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["yt_dlp_web*"]
+exclude = ["tests*"]
+
+[project.scripts]
+yt-dlp-web = "yt_dlp_web.app:main"
 
 [tool.ruff]
 line-length = 100

@@ -1,0 +1,12 @@
+include README.md
+include LICENSE
+include .env.example
+include requirements.txt
+include requirements-dev.txt
+recursive-include templates *.html
+recursive-include static *.css *.js
+recursive-include scripts *.ps1 *.sh
+include unraid-template.xml
+include docker-compose.yml
+include Dockerfile
+include .dockerignore
