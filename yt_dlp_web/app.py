@@ -28,6 +28,13 @@ app = Flask(__name__,
 DOWNLOAD_DIR = os.getenv('DOWNLOAD_DIR', '/downloads')
 PORT = int(os.getenv('PORT', 8000))
 MAX_CONCURRENT_DOWNLOADS = int(os.getenv('MAX_CONCURRENT_DOWNLOADS', 2))
+RATE_LIMIT_SECONDS = float(os.getenv('RATE_LIMIT_SECONDS', '3.0'))
+SLEEP_INTERVAL_MIN = float(os.getenv('SLEEP_INTERVAL_MIN', '1.0'))
+SLEEP_INTERVAL_MAX = float(os.getenv('SLEEP_INTERVAL_MAX', '3.0'))
+COOKIES_FILE = os.getenv('COOKIES_FILE', '').strip() or None
+ALLOW_DUPLICATES = os.getenv('ALLOW_DUPLICATES', 'false').lower() == 'true'
+OVERWRITE_EXISTING = os.getenv('OVERWRITE_EXISTING', 'false').lower() == 'true'
+USE_DOWNLOAD_ARCHIVE = os.getenv('USE_DOWNLOAD_ARCHIVE', 'true').lower() == 'true'
 
 # Ensure download directory exists and is writable
 try:
@@ -49,8 +56,16 @@ except Exception as e:
     logger.error(f"Failed to setup download directory {DOWNLOAD_DIR}: {e}")
     # Don't raise - let the app start so we can show error in health check
 
-# Initialize downloader
-downloader = YTDLPDownloader(DOWNLOAD_DIR)
+# Initialize downloader with anti-bot detection and duplicate handling
+downloader = YTDLPDownloader(
+    DOWNLOAD_DIR,
+    rate_limit_seconds=RATE_LIMIT_SECONDS,
+    sleep_interval=(SLEEP_INTERVAL_MIN, SLEEP_INTERVAL_MAX),
+    cookies_file=COOKIES_FILE,
+    allow_duplicates=ALLOW_DUPLICATES,
+    overwrite_existing=OVERWRITE_EXISTING,
+    use_download_archive=USE_DOWNLOAD_ARCHIVE
+)
 
 # Cleanup thread to remove old jobs
 def cleanup_worker():
@@ -93,15 +108,23 @@ def download():
             return jsonify({'error': 'No valid URLs provided'}), 400
 
         # Queue downloads
-        job_ids = downloader.queue_multiple_downloads(valid_urls)
+        results = downloader.queue_multiple_downloads(valid_urls)
 
-        logger.info(f"Queued {len(job_ids)} downloads")
+        logger.info(f"Queued {results['new_count']} new downloads, {results['duplicate_count']} duplicates")
 
-        return jsonify({
+        response = {
             'success': True,
-            'job_ids': job_ids,
-            'message': f'Queued {len(job_ids)} downloads'
-        })
+            'job_ids': results['job_ids'],
+            'new_count': results['new_count'],
+            'duplicate_count': results['duplicate_count'],
+            'message': f"Queued {results['new_count']} new downloads"
+        }
+
+        if results['duplicate_count'] > 0:
+            response['message'] += f", {results['duplicate_count']} duplicates skipped"
+            response['duplicates'] = results['duplicates']
+
+        return jsonify(response)
 
     except Exception as e:
         logger.error(f"Download error: {e}")
@@ -115,7 +138,7 @@ def get_status(job_id):
         if not job:
             return jsonify({'error': 'Job not found'}), 404
 
-        return jsonify({
+        response = {
             'job_id': job.job_id,
             'url': job.url,
             'status': job.status,
@@ -124,7 +147,15 @@ def get_status(job_id):
             'error': job.error,
             'started_at': job.started_at.isoformat() if job.started_at else None,
             'completed_at': job.completed_at.isoformat() if job.completed_at else None
-        })
+        }
+
+        # Add error details if available
+        if job.error_type:
+            response['error_type'] = job.error_type.value
+            response['error_suggestion'] = job.error_suggestion
+            response['is_retryable'] = job.is_retryable
+
+        return jsonify(response)
 
     except Exception as e:
         logger.error(f"Status error: {e}")
@@ -138,7 +169,7 @@ def get_all_status():
         job_list = []
 
         for job in jobs.values():
-            job_list.append({
+            job_data = {
                 'job_id': job.job_id,
                 'url': job.url,
                 'status': job.status,
@@ -147,7 +178,15 @@ def get_all_status():
                 'error': job.error,
                 'started_at': job.started_at.isoformat() if job.started_at else None,
                 'completed_at': job.completed_at.isoformat() if job.completed_at else None
-            })
+            }
+
+            # Add error details if available
+            if job.error_type:
+                job_data['error_type'] = job.error_type.value
+                job_data['error_suggestion'] = job.error_suggestion
+                job_data['is_retryable'] = job.is_retryable
+
+            job_list.append(job_data)
 
         return jsonify({
             'jobs': job_list,

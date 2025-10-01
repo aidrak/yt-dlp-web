@@ -2,6 +2,7 @@ version: '3.8'
 
 services:
   yt-dlp-web:
+    container_name: yt-dlp-web
     build: .
     ports:
       - "8000:8000"
@@ -14,6 +15,15 @@ services:
       - PUID=99   # nobody user (Unraid standard)
       - PGID=100  # users group (Unraid standard)
       - LOG_LEVEL=INFO
+      # Anti-bot detection settings
+      - RATE_LIMIT_SECONDS=3.0         # Delay between downloads
+      - SLEEP_INTERVAL_MIN=1.0         # Min sleep between requests
+      - SLEEP_INTERVAL_MAX=3.0         # Max sleep between requests
+      - COOKIES_FILE=                  # Optional: path to cookies file (e.g., /app/cookies.txt)
+      # Duplicate and overwrite handling
+      - ALLOW_DUPLICATES=false         # Allow queueing same URL multiple times
+      - OVERWRITE_EXISTING=false       # Overwrite existing files (creates (1) suffix if false)
+      - USE_DOWNLOAD_ARCHIVE=true      # Track completed URLs to skip re-downloads
     volumes:
       - .:/app
       - ./downloads:/downloads
