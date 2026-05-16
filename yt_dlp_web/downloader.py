@@ -6,11 +6,12 @@ import random
 import re
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from enum import Enum
-from threading import Lock, Thread
+from threading import Lock
 from typing import Any, Callable, Dict, List, Optional
-from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 try:
     import yt_dlp  # type: ignore[import-untyped]
@@ -54,6 +55,10 @@ class DownloadStatus:
         self.retry_count = 0
         self.started_at = datetime.now()
         self.completed_at: Optional[datetime] = None
+        self.speed: Optional[float] = None
+        self.eta: Optional[int] = None
+        self.downloaded_bytes: Optional[int] = None
+        self.total_bytes: Optional[int] = None
 
 class YTDLPDownloader:
     def __init__(self, download_dir: str, rate_limit_seconds: float = 3.0,
@@ -61,7 +66,8 @@ class YTDLPDownloader:
                  cookies_file: Optional[str] = None,
                  allow_duplicates: bool = False,
                  overwrite_existing: bool = False,
-                 use_download_archive: bool = True):
+                 use_download_archive: bool = True,
+                 max_concurrent_downloads: int = 3):
         self.download_dir = download_dir
         self.jobs: Dict[str, DownloadStatus] = {}
         self.rate_limit_seconds = rate_limit_seconds
@@ -72,6 +78,9 @@ class YTDLPDownloader:
         self.use_download_archive = use_download_archive
         self.last_download_time = 0.0
         self.download_lock = Lock()
+        self.executor = ThreadPoolExecutor(
+            max_workers=max_concurrent_downloads
+        )
 
         # Download archive file to track completed downloads
         self.archive_file = os.path.join(download_dir, '.yt-dlp-archive.txt')
@@ -245,37 +254,56 @@ class YTDLPDownloader:
     def progress_hook(self, job_id: str) -> Callable[[Dict[str, Any]], None]:
         """Create a progress hook for yt-dlp"""
         def hook(d: Dict[str, Any]) -> None:
-            if job_id in self.jobs:
-                job = self.jobs[job_id]
+            if job_id not in self.jobs:
+                return
+            job = self.jobs[job_id]
 
-                if d['status'] == 'downloading':
-                    job.status = "downloading"
-                    if 'total_bytes' in d and d['total_bytes']:
-                        job.progress = int((d['downloaded_bytes'] / d['total_bytes']) * 100)
-                    elif '_percent_str' in d:
-                        # Parse percentage from string like "50.0%"
-                        percent_str = d['_percent_str'].strip().rstrip('%')
-                        try:
-                            job.progress = int(float(percent_str))
-                        except (ValueError, TypeError):
-                            pass
+            if d['status'] == 'downloading':
+                job.status = "downloading"
+                total = d.get('total_bytes') or d.get('total_bytes_estimate')
+                downloaded = d.get('downloaded_bytes', 0)
 
-                    # Extract filename if available
-                    if 'filename' in d:
-                        job.filename = os.path.basename(d['filename'])
+                if total and total > 0:
+                    job.progress = min(int((downloaded / total) * 100), 100)
+                    job.total_bytes = int(total)
+                    job.downloaded_bytes = int(downloaded)
+                elif '_percent_str' in d:
+                    percent_str = d['_percent_str'].strip().rstrip('%')
+                    try:
+                        job.progress = min(int(float(percent_str)), 100)
+                    except (ValueError, TypeError):
+                        pass
 
-                elif d['status'] == 'finished':
-                    job.status = "completed"
-                    job.progress = 100
-                    job.completed_at = datetime.now()
-                    if 'filename' in d:
-                        job.filename = os.path.basename(d['filename'])
+                job.speed = d.get('speed')
+                job.eta = d.get('eta')
 
-                elif d['status'] == 'error':
-                    job.status = "failed"
-                    job.error = "Download failed"
-                    job.completed_at = datetime.now()
+                if 'filename' in d:
+                    job.filename = os.path.basename(d['filename'])
 
+            elif d['status'] == 'finished':
+                job.progress = 100
+                job.speed = None
+                job.eta = None
+                if 'filename' in d:
+                    job.filename = os.path.basename(d['filename'])
+
+            elif d['status'] == 'error':
+                job.status = "failed"
+                job.error = "Download failed"
+                job.completed_at = datetime.now()
+
+        return hook
+
+    def postprocessor_hook(self, job_id: str) -> Callable[[Dict[str, Any]], None]:
+        """Create a postprocessor hook to mark true completion"""
+        def hook(d: Dict[str, Any]) -> None:
+            if job_id not in self.jobs:
+                return
+            job = self.jobs[job_id]
+            if d.get('status') == 'finished':
+                job.status = "completed"
+                job.progress = 100
+                job.completed_at = datetime.now()
         return hook
 
     def _apply_rate_limit(self) -> None:
@@ -340,29 +368,32 @@ class YTDLPDownloader:
             # Start with common options and add download-specific ones
             ydl_opts = self._get_common_ydl_opts()
             ydl_opts.update({
-                'format': 'best[ext=mp4]/best',  # Prefer mp4, fallback to best
+                'format': 'best[ext=mp4]/best',
                 'outtmpl': output_template,
                 'progress_hooks': [self.progress_hook(job_id)],
+                'postprocessor_hooks': [self.postprocessor_hook(job_id)],
                 'extractaudio': False,
                 'audioformat': 'mp3',
                 'embed_subs': False,
                 'writesubtitles': False,
                 'writeautomaticsub': False,
-                'nooverwrites': not self.overwrite_existing,  # Skip if exists unless overwrite enabled
+                'nooverwrites': not self.overwrite_existing,
             })
 
             job.status = "downloading"
 
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:  # type: ignore[misc]
                 result = ydl.download([url])
-                # If download was skipped due to archive, mark as such
                 if result == 0:
-                    # Check if file was actually downloaded or just skipped
                     if job.status == "downloading" and job.progress == 0:
                         job.status = "skipped"
                         job.error = "Already downloaded (found in archive)"
                         job.completed_at = datetime.now()
                         logger.info(f"Skipped {url} - already in archive")
+                    elif job.status != "completed":
+                        job.status = "completed"
+                        job.progress = 100
+                        job.completed_at = datetime.now()
 
         except Exception as e:
             error_msg = str(e)
@@ -383,7 +414,6 @@ class YTDLPDownloader:
 
     def queue_download(self, url: str) -> tuple[str, bool]:
         """Queue a download and return (job_id, is_new). is_new=False if duplicate."""
-        # Check for duplicate
         duplicate_job_id = self.is_url_duplicate(url)
         if duplicate_job_id:
             logger.info(f"URL already queued/downloading: {url} (job {duplicate_job_id})")
@@ -393,10 +423,7 @@ class YTDLPDownloader:
         job = DownloadStatus(job_id, url)
         self.jobs[job_id] = job
 
-        # Start download in background thread
-        thread = Thread(target=self.download_video, args=(url, job_id))
-        thread.daemon = True
-        thread.start()
+        self.executor.submit(self.download_video, url, job_id)
 
         return (job_id, True)
 

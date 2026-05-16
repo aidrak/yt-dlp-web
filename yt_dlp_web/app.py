@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 # Initialize Flask app with correct template and static paths
 import os as _os
+
 app = Flask(__name__,
            template_folder=_os.path.join(_os.path.dirname(_os.path.dirname(__file__)), 'templates'),
            static_folder=_os.path.join(_os.path.dirname(_os.path.dirname(__file__)), 'static'))
@@ -64,7 +65,8 @@ downloader = YTDLPDownloader(
     cookies_file=COOKIES_FILE,
     allow_duplicates=ALLOW_DUPLICATES,
     overwrite_existing=OVERWRITE_EXISTING,
-    use_download_archive=USE_DOWNLOAD_ARCHIVE
+    use_download_archive=USE_DOWNLOAD_ARCHIVE,
+    max_concurrent_downloads=MAX_CONCURRENT_DOWNLOADS,
 )
 
 # Cleanup thread to remove old jobs
@@ -146,10 +148,13 @@ def get_status(job_id):
             'filename': job.filename,
             'error': job.error,
             'started_at': job.started_at.isoformat() if job.started_at else None,
-            'completed_at': job.completed_at.isoformat() if job.completed_at else None
+            'completed_at': job.completed_at.isoformat() if job.completed_at else None,
+            'speed': job.speed,
+            'eta': job.eta,
+            'downloaded_bytes': job.downloaded_bytes,
+            'total_bytes': job.total_bytes,
         }
 
-        # Add error details if available
         if job.error_type:
             response['error_type'] = job.error_type.value
             response['error_suggestion'] = job.error_suggestion
@@ -177,10 +182,13 @@ def get_all_status():
                 'filename': job.filename,
                 'error': job.error,
                 'started_at': job.started_at.isoformat() if job.started_at else None,
-                'completed_at': job.completed_at.isoformat() if job.completed_at else None
+                'completed_at': job.completed_at.isoformat() if job.completed_at else None,
+                'speed': job.speed,
+                'eta': job.eta,
+                'downloaded_bytes': job.downloaded_bytes,
+                'total_bytes': job.total_bytes,
             }
 
-            # Add error details if available
             if job.error_type:
                 job_data['error_type'] = job.error_type.value
                 job_data['error_suggestion'] = job.error_suggestion
