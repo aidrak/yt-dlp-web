@@ -1,5 +1,6 @@
 let refreshInterval;
 let isRefreshing = false;
+let recentOpen = false;
 
 const downloadForm = document.getElementById('downloadForm');
 const urlInput = document.getElementById('urlInput');
@@ -215,16 +216,14 @@ function updateJobsList(jobs) {
     }
   }
 
-  active.sort((a, b) => new Date(b.started_at) - new Date(a.started_at));
+  active.sort((a, b) => new Date(a.started_at) - new Date(b.started_at));
   recent.sort((a, b) => new Date(b.completed_at) - new Date(a.completed_at));
 
   let html = '';
 
   if (active.length > 0) {
     html += active.map(job => createJobItemHTML(job)).join('');
-  } else if (recent.length > 0) {
-    html += '<div class="no-jobs">All downloads complete.</div>';
-  } else {
+  } else if (recent.length === 0) {
     html += '<div class="no-jobs">No downloads yet. Paste a URL above to get started.</div>';
   }
 
@@ -234,9 +233,9 @@ function updateJobsList(jobs) {
       <div class="recent-section">
         <div class="recent-header" onclick="toggleRecent()">
           <span>Recent (${recent.length})</span>
-          <span id="recentToggle" class="recent-toggle">▸</span>
+          <span id="recentToggle" class="recent-toggle">${recentOpen ? '▾' : '▸'}</span>
         </div>
-        <div id="recentList" class="recent-list" style="display: none;">
+        <div id="recentList" class="recent-list" style="display: ${recentOpen ? 'block' : 'none'};">
           ${shown.map(job => createJobItemHTML(job)).join('')}
         </div>
       </div>`;
@@ -246,9 +245,10 @@ function updateJobsList(jobs) {
 }
 
 function toggleRecent() {
+  recentOpen = !recentOpen;
   const list = document.getElementById('recentList');
   const toggle = document.getElementById('recentToggle');
-  if (list.style.display === 'none') {
+  if (recentOpen) {
     list.style.display = 'block';
     toggle.textContent = '▾';
   } else {

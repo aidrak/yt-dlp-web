@@ -29,7 +29,7 @@ app = Flask(
 # Configuration
 DOWNLOAD_DIR = os.getenv("DOWNLOAD_DIR", "/downloads")
 PORT = int(os.getenv("PORT", 8000))
-MAX_CONCURRENT_DOWNLOADS = int(os.getenv("MAX_CONCURRENT_DOWNLOADS", 2))
+MAX_CONCURRENT_DOWNLOADS = int(os.getenv("MAX_CONCURRENT_DOWNLOADS", 5))
 RATE_LIMIT_SECONDS = float(os.getenv("RATE_LIMIT_SECONDS", "3.0"))
 SLEEP_INTERVAL_MIN = float(os.getenv("SLEEP_INTERVAL_MIN", "1.0"))
 SLEEP_INTERVAL_MAX = float(os.getenv("SLEEP_INTERVAL_MAX", "3.0"))
