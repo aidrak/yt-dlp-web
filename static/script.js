@@ -194,8 +194,67 @@ function updateJobsList(jobs) {
     return;
   }
 
-  jobs.sort((a, b) => new Date(b.started_at) - new Date(a.started_at));
-  jobsList.innerHTML = jobs.map(job => createJobItemHTML(job)).join('');
+  const now = Date.now();
+  const thirtySeconds = 30 * 1000;
+
+  const active = [];
+  const recent = [];
+
+  for (const job of jobs) {
+    if (job.status === 'queued' || job.status === 'downloading') {
+      active.push(job);
+    } else if (job.completed_at) {
+      const completedAge = now - new Date(job.completed_at).getTime();
+      if (completedAge < thirtySeconds) {
+        active.push(job);
+      } else {
+        recent.push(job);
+      }
+    } else {
+      active.push(job);
+    }
+  }
+
+  active.sort((a, b) => new Date(b.started_at) - new Date(a.started_at));
+  recent.sort((a, b) => new Date(b.completed_at) - new Date(a.completed_at));
+
+  let html = '';
+
+  if (active.length > 0) {
+    html += active.map(job => createJobItemHTML(job)).join('');
+  } else if (recent.length > 0) {
+    html += '<div class="no-jobs">All downloads complete.</div>';
+  } else {
+    html += '<div class="no-jobs">No downloads yet. Paste a URL above to get started.</div>';
+  }
+
+  if (recent.length > 0) {
+    const shown = recent.slice(0, 10);
+    html += `
+      <div class="recent-section">
+        <div class="recent-header" onclick="toggleRecent()">
+          <span>Recent (${recent.length})</span>
+          <span id="recentToggle" class="recent-toggle">▸</span>
+        </div>
+        <div id="recentList" class="recent-list" style="display: none;">
+          ${shown.map(job => createJobItemHTML(job)).join('')}
+        </div>
+      </div>`;
+  }
+
+  jobsList.innerHTML = html;
+}
+
+function toggleRecent() {
+  const list = document.getElementById('recentList');
+  const toggle = document.getElementById('recentToggle');
+  if (list.style.display === 'none') {
+    list.style.display = 'block';
+    toggle.textContent = '▾';
+  } else {
+    list.style.display = 'none';
+    toggle.textContent = '▸';
+  }
 }
 
 function createJobItemHTML(job) {
