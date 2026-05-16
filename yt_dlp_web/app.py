@@ -13,29 +13,30 @@ load_dotenv()
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
 # Initialize Flask app with correct template and static paths
 import os as _os
 
-app = Flask(__name__,
-           template_folder=_os.path.join(_os.path.dirname(_os.path.dirname(__file__)), 'templates'),
-           static_folder=_os.path.join(_os.path.dirname(_os.path.dirname(__file__)), 'static'))
+app = Flask(
+    __name__,
+    template_folder=_os.path.join(_os.path.dirname(_os.path.dirname(__file__)), "templates"),
+    static_folder=_os.path.join(_os.path.dirname(_os.path.dirname(__file__)), "static"),
+)
 
 # Configuration
-DOWNLOAD_DIR = os.getenv('DOWNLOAD_DIR', '/downloads')
-PORT = int(os.getenv('PORT', 8000))
-MAX_CONCURRENT_DOWNLOADS = int(os.getenv('MAX_CONCURRENT_DOWNLOADS', 2))
-RATE_LIMIT_SECONDS = float(os.getenv('RATE_LIMIT_SECONDS', '3.0'))
-SLEEP_INTERVAL_MIN = float(os.getenv('SLEEP_INTERVAL_MIN', '1.0'))
-SLEEP_INTERVAL_MAX = float(os.getenv('SLEEP_INTERVAL_MAX', '3.0'))
-COOKIES_FILE = os.getenv('COOKIES_FILE', '').strip() or None
-ALLOW_DUPLICATES = os.getenv('ALLOW_DUPLICATES', 'false').lower() == 'true'
-OVERWRITE_EXISTING = os.getenv('OVERWRITE_EXISTING', 'false').lower() == 'true'
-USE_DOWNLOAD_ARCHIVE = os.getenv('USE_DOWNLOAD_ARCHIVE', 'true').lower() == 'true'
+DOWNLOAD_DIR = os.getenv("DOWNLOAD_DIR", "/downloads")
+PORT = int(os.getenv("PORT", 8000))
+MAX_CONCURRENT_DOWNLOADS = int(os.getenv("MAX_CONCURRENT_DOWNLOADS", 2))
+RATE_LIMIT_SECONDS = float(os.getenv("RATE_LIMIT_SECONDS", "3.0"))
+SLEEP_INTERVAL_MIN = float(os.getenv("SLEEP_INTERVAL_MIN", "1.0"))
+SLEEP_INTERVAL_MAX = float(os.getenv("SLEEP_INTERVAL_MAX", "3.0"))
+COOKIES_FILE = os.getenv("COOKIES_FILE", "").strip() or None
+ALLOW_DUPLICATES = os.getenv("ALLOW_DUPLICATES", "false").lower() == "true"
+OVERWRITE_EXISTING = os.getenv("OVERWRITE_EXISTING", "false").lower() == "true"
+USE_DOWNLOAD_ARCHIVE = os.getenv("USE_DOWNLOAD_ARCHIVE", "true").lower() == "true"
 
 # Ensure download directory exists and is writable
 try:
@@ -43,10 +44,10 @@ try:
     logger.info(f"Download directory ready: {DOWNLOAD_DIR}")
 
     # Test write permissions (non-fatal for container startup)
-    test_file = os.path.join(DOWNLOAD_DIR, '.write_test')
+    test_file = os.path.join(DOWNLOAD_DIR, ".write_test")
     try:
-        with open(test_file, 'w') as f:
-            f.write('test')
+        with open(test_file, "w") as f:
+            f.write("test")
         os.remove(test_file)
         logger.info("Download directory is writable")
     except (PermissionError, FileNotFoundError, OSError) as e:
@@ -69,31 +70,35 @@ downloader = YTDLPDownloader(
     max_concurrent_downloads=MAX_CONCURRENT_DOWNLOADS,
 )
 
+
 # Cleanup thread to remove old jobs
 def cleanup_worker():
     while True:
         time.sleep(3600)  # Run every hour
         downloader.cleanup_old_jobs(24)  # Remove jobs older than 24 hours
 
+
 cleanup_thread = threading.Thread(target=cleanup_worker, daemon=True)
 cleanup_thread.start()
 
-@app.route('/')
+
+@app.route("/")
 def index():
     """Serve the main web interface"""
-    return render_template('index.html')
+    return render_template("index.html")
 
-@app.route('/download', methods=['POST'])
+
+@app.route("/download", methods=["POST"])
 def download():
     """Handle download requests"""
     try:
         data = request.get_json()
         if not data:
-            return jsonify({'error': 'No JSON data provided'}), 400
+            return jsonify({"error": "No JSON data provided"}), 400
 
-        urls = data.get('urls', [])
+        urls = data.get("urls", [])
         if not urls:
-            return jsonify({'error': 'No URLs provided'}), 400
+            return jsonify({"error": "No URLs provided"}), 400
 
         # Handle single URL string
         if isinstance(urls, str):
@@ -103,70 +108,77 @@ def download():
         valid_urls = []
         for url in urls:
             url = url.strip()
-            if url and (url.startswith('http://') or url.startswith('https://')):
+            if url and (url.startswith("http://") or url.startswith("https://")):
                 valid_urls.append(url)
 
         if not valid_urls:
-            return jsonify({'error': 'No valid URLs provided'}), 400
+            return jsonify({"error": "No valid URLs provided"}), 400
+
+        # Extract cookies if provided (from browser extension)
+        cookies = data.get("cookies")
 
         # Queue downloads
-        results = downloader.queue_multiple_downloads(valid_urls)
+        results = downloader.queue_multiple_downloads(valid_urls, cookies=cookies)
 
-        logger.info(f"Queued {results['new_count']} new downloads, {results['duplicate_count']} duplicates")
+        logger.info(
+            f"Queued {results['new_count']} new downloads, {results['duplicate_count']} duplicates"
+        )
 
         response = {
-            'success': True,
-            'job_ids': results['job_ids'],
-            'new_count': results['new_count'],
-            'duplicate_count': results['duplicate_count'],
-            'message': f"Queued {results['new_count']} new downloads"
+            "success": True,
+            "job_ids": results["job_ids"],
+            "new_count": results["new_count"],
+            "duplicate_count": results["duplicate_count"],
+            "message": f"Queued {results['new_count']} new downloads",
         }
 
-        if results['duplicate_count'] > 0:
-            response['message'] += f", {results['duplicate_count']} duplicates skipped"
-            response['duplicates'] = results['duplicates']
+        if results["duplicate_count"] > 0:
+            response["message"] += f", {results['duplicate_count']} duplicates skipped"
+            response["duplicates"] = results["duplicates"]
 
         return jsonify(response)
 
     except Exception as e:
         logger.error(f"Download error: {e}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({"error": str(e)}), 500
 
-@app.route('/status/<job_id>')
+
+@app.route("/status/<job_id>")
 def get_status(job_id):
     """Get status of a specific download job"""
     try:
         job = downloader.get_job_status(job_id)
         if not job:
-            return jsonify({'error': 'Job not found'}), 404
+            return jsonify({"error": "Job not found"}), 404
 
         response = {
-            'job_id': job.job_id,
-            'url': job.url,
-            'status': job.status,
-            'progress': job.progress,
-            'filename': job.filename,
-            'error': job.error,
-            'started_at': job.started_at.isoformat() if job.started_at else None,
-            'completed_at': job.completed_at.isoformat() if job.completed_at else None,
-            'speed': job.speed,
-            'eta': job.eta,
-            'downloaded_bytes': job.downloaded_bytes,
-            'total_bytes': job.total_bytes,
+            "job_id": job.job_id,
+            "url": job.url,
+            "status": job.status,
+            "progress": job.progress,
+            "filename": job.filename,
+            "error": job.error,
+            "started_at": job.started_at.isoformat() if job.started_at else None,
+            "completed_at": job.completed_at.isoformat() if job.completed_at else None,
+            "speed": job.speed,
+            "eta": job.eta,
+            "downloaded_bytes": job.downloaded_bytes,
+            "total_bytes": job.total_bytes,
         }
 
         if job.error_type:
-            response['error_type'] = job.error_type.value
-            response['error_suggestion'] = job.error_suggestion
-            response['is_retryable'] = job.is_retryable
+            response["error_type"] = job.error_type.value
+            response["error_suggestion"] = job.error_suggestion
+            response["is_retryable"] = job.is_retryable
 
         return jsonify(response)
 
     except Exception as e:
         logger.error(f"Status error: {e}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({"error": str(e)}), 500
 
-@app.route('/status')
+
+@app.route("/status")
 def get_all_status():
     """Get status of all download jobs"""
     try:
@@ -175,117 +187,117 @@ def get_all_status():
 
         for job in jobs.values():
             job_data = {
-                'job_id': job.job_id,
-                'url': job.url,
-                'status': job.status,
-                'progress': job.progress,
-                'filename': job.filename,
-                'error': job.error,
-                'started_at': job.started_at.isoformat() if job.started_at else None,
-                'completed_at': job.completed_at.isoformat() if job.completed_at else None,
-                'speed': job.speed,
-                'eta': job.eta,
-                'downloaded_bytes': job.downloaded_bytes,
-                'total_bytes': job.total_bytes,
+                "job_id": job.job_id,
+                "url": job.url,
+                "status": job.status,
+                "progress": job.progress,
+                "filename": job.filename,
+                "error": job.error,
+                "started_at": job.started_at.isoformat() if job.started_at else None,
+                "completed_at": job.completed_at.isoformat() if job.completed_at else None,
+                "speed": job.speed,
+                "eta": job.eta,
+                "downloaded_bytes": job.downloaded_bytes,
+                "total_bytes": job.total_bytes,
             }
 
             if job.error_type:
-                job_data['error_type'] = job.error_type.value
-                job_data['error_suggestion'] = job.error_suggestion
-                job_data['is_retryable'] = job.is_retryable
+                job_data["error_type"] = job.error_type.value
+                job_data["error_suggestion"] = job.error_suggestion
+                job_data["is_retryable"] = job.is_retryable
 
             job_list.append(job_data)
 
-        return jsonify({
-            'jobs': job_list,
-            'total': len(job_list)
-        })
+        return jsonify({"jobs": job_list, "total": len(job_list)})
 
     except Exception as e:
         logger.error(f"Status error: {e}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({"error": str(e)}), 500
 
-@app.route('/info', methods=['POST'])
+
+@app.route("/info", methods=["POST"])
 def get_video_info():
     """Get video information without downloading"""
     try:
         data = request.get_json()
         if not data:
-            return jsonify({'error': 'No JSON data provided'}), 400
+            return jsonify({"error": "No JSON data provided"}), 400
 
-        url = data.get('url', '').strip()
+        url = data.get("url", "").strip()
         if not url:
-            return jsonify({'error': 'No URL provided'}), 400
+            return jsonify({"error": "No URL provided"}), 400
 
         info = downloader.get_video_info(url)
         if not info:
-            return jsonify({'error': 'Failed to extract video information'}), 400
+            return jsonify({"error": "Failed to extract video information"}), 400
 
-        return jsonify({
-            'success': True,
-            'info': info
-        })
+        return jsonify({"success": True, "info": info})
 
     except Exception as e:
         logger.error(f"Info error: {e}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({"error": str(e)}), 500
 
-@app.route('/health')
+
+@app.route("/health")
 def health():
     """Health check endpoint for Docker"""
     try:
         # Check if download directory is writable
         writable = False
         try:
-            test_file = os.path.join(DOWNLOAD_DIR, '.health_test')
-            with open(test_file, 'w') as f:
-                f.write('test')
+            test_file = os.path.join(DOWNLOAD_DIR, ".health_test")
+            with open(test_file, "w") as f:
+                f.write("test")
             os.remove(test_file)
             writable = True
         except:
             pass
 
-        status = 'healthy' if writable else 'degraded'
+        status = "healthy" if writable else "degraded"
 
         response = {
-            'status': status,
-            'download_dir': DOWNLOAD_DIR,
-            'download_dir_exists': os.path.exists(DOWNLOAD_DIR),
-            'download_dir_writable': writable,
-            'active_jobs': len([
-                j for j in downloader.get_all_jobs().values()
-                if j.status in ['queued', 'downloading']
-            ])
+            "status": status,
+            "download_dir": DOWNLOAD_DIR,
+            "download_dir_exists": os.path.exists(DOWNLOAD_DIR),
+            "download_dir_writable": writable,
+            "active_jobs": len(
+                [
+                    j
+                    for j in downloader.get_all_jobs().values()
+                    if j.status in ["queued", "downloading"]
+                ]
+            ),
         }
 
         if not writable:
-            response['warning'] = 'Download directory is not writable. Check volume permissions (PUID/PGID).'
+            response["warning"] = (
+                "Download directory is not writable. Check volume permissions (PUID/PGID)."
+            )
 
         return jsonify(response)
     except Exception as e:
         logger.error(f"Health check error: {e}")
-        return jsonify({'status': 'unhealthy', 'error': str(e)}), 500
+        return jsonify({"status": "unhealthy", "error": str(e)}), 500
+
 
 @app.errorhandler(404)
 def not_found(error):
-    return jsonify({'error': 'Not found'}), 404
+    return jsonify({"error": "Not found"}), 404
+
 
 @app.errorhandler(500)
 def internal_error(error):
     logger.error(f"Internal server error: {error}")
-    return jsonify({'error': 'Internal server error'}), 500
+    return jsonify({"error": "Internal server error"}), 500
+
 
 def main():
     """Main entry point for the application."""
     logger.info(f"Starting yt-dlp web server on port {PORT}")
     logger.info(f"Download directory: {DOWNLOAD_DIR}")
 
-    app.run(
-        host='0.0.0.0',
-        port=PORT,
-        debug=os.getenv('DEBUG', 'false').lower() == 'true'
-    )
+    app.run(host="0.0.0.0", port=PORT, debug=os.getenv("DEBUG", "false").lower() == "true")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
