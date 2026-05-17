@@ -23,11 +23,15 @@ logger = logging.getLogger(__name__)
 
 # Realistic user agents for rotation
 USER_AGENTS = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:122.0) Gecko/20100101 Firefox/122.0",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+    "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15",
 ]
 
 
@@ -416,7 +420,13 @@ class YTDLPDownloader:
                 ydl_opts["cookiefile"] = cookies_file
             ydl_opts.update(
                 {
-                    "format": "best[ext=mp4]/best",
+                    "format": (
+                        "bestvideo[ext=mp4]+bestaudio[ext=m4a]"
+                        "/bestvideo+bestaudio"
+                        "/best[ext=mp4]"
+                        "/best"
+                    ),
+                    "merge_output_format": "mp4",
                     "outtmpl": output_template,
                     "progress_hooks": [self.progress_hook(job_id)],
                     "postprocessor_hooks": [self.postprocessor_hook(job_id)],
@@ -460,7 +470,9 @@ class YTDLPDownloader:
 
             # Log with classification
             logger.error(
-                f"Error type: {error_type.value}, Retryable: {is_retryable}, Suggestion: {suggestion}"
+                f"Error type: {error_type.value}, "
+                f"Retryable: {is_retryable}, "
+                f"Suggestion: {suggestion}"
             )
         finally:
             if cookies_file and cookies_file.startswith(tempfile.gettempdir()):
